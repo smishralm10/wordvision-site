@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>WordVision: Scan, Learn, Remember</title>
+  <meta name="description" content="Point your iPhone camera at any page, tap a word you don't know, and WordVision helps you remember it with spaced-repetition reviews.">
+  <meta name="theme-color" content="#0d0a24">
+  <meta property="og:title" content="WordVision">
+  <meta property="og:description" content="Point. Scan. Understand. Tap any word on a page and make it stick.">
+  <meta property="og:image" content="images/learn.jpg">
+  <link rel="icon" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <style>
+    :root {
+      --bg: #0d0a24;
+      --bg-2: #120f33;
+      --panel: rgba(255, 255, 255, 0.04);
+      --panel-border: rgba(255, 255, 255, 0.09);
+      --text: #f4f2ff;
+      --muted: #a9a5c7;
+      --faint: #726d95;
+      --violet: #7c3aed;
+      --lavender: #c4a8ff;
+      --periwinkle: #93a8ff;
+      --blue: #3b6cf6;
+      --grad-text: linear-gradient(95deg, #c9a9ff 0%, #9fb2ff 100%);
+      --max: 1120px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+      font-size: 17px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    a { color: inherit; }
+    img { display: block; max-width: 100%; }
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+    .grad { background: var(--grad-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+    /* ---------- Nav ---------- */
+    nav {
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: saturate(160%) blur(18px);
+      -webkit-backdrop-filter: saturate(160%) blur(18px);
+      background: rgba(13, 10, 36, 0.72);
+      border-bottom: 1px solid var(--panel-border);
+    }
+    nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 18px; text-decoration: none; letter-spacing: -0.01em; }
+    .brand img { width: 32px; height: 32px; border-radius: 8px; }
+    .links { display: flex; gap: 28px; font-size: 15px; }
+    .links a { text-decoration: none; color: var(--muted); transition: color .2s; }
+    .links a:hover { color: var(--text); }
+
+    /* ---------- Buttons / badge ---------- */
+    .badge { display: inline-block; line-height: 0; }
+    .badge img { height: 54px; width: auto; }
+    .badge-note { margin-top: 12px; font-size: 14px; color: var(--faint); }
+
+    /* ---------- Hero ---------- */
+    .hero { position: relative; padding: 88px 0 40px; overflow: hidden; }
+    .hero::before {
+      content: ""; position: absolute; inset: -20% -10% auto -10%; height: 900px; z-index: -1;
+      background:
+        radial-gradient(600px 420px at 18% 30%, rgba(124, 58, 237, 0.55), transparent 70%),
+        radial-gradient(560px 460px at 85% 40%, rgba(59, 108, 246, 0.45), transparent 70%);
+      filter: blur(10px);
+    }
+    .hero .wrap { display: grid; grid-template-columns: 1.15fr 1fr; gap: 40px; align-items: center; }
+    .eyebrow {
+      display: inline-block; padding: 6px 14px; border-radius: 999px;
+      border: 1px solid rgba(196, 168, 255, 0.35); background: rgba(124, 58, 237, 0.16);
+      color: var(--lavender); font-size: 13px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    .hero h1 {
+      margin: 22px 0 20px;
+      font-size: clamp(42px, 5.6vw, 68px); line-height: 1.02; letter-spacing: -0.035em; font-weight: 750;
+    }
+    .hero p.lede { font-size: 20px; color: var(--muted); max-width: 30em; margin-bottom: 34px; }
+    .hero-phones {
+      position: relative; height: 640px;
+      -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent 100%);
+              mask-image: linear-gradient(to bottom, #000 78%, transparent 100%);
+    }
+    .hero-phones .phone img { -webkit-mask-image: none; mask-image: none; }
+    .hero-phones .phone { position: absolute; width: 300px; }
+    .hero-phones .back { left: 4%; top: 40px; transform: rotate(-6deg); opacity: .85; }
+    .hero-phones .front { right: 4%; top: 0; transform: rotate(4deg); }
+
+    /* Phone crops: round the top corners to the device frame, fade the bottom out */
+    .phone img {
+      width: 100%;
+      border-radius: 12.6% 12.6% 0 0 / 6.5% 6.5% 0 0;
+      -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+              mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+      filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.45));
+    }
+
+    /* ---------- Steps strip ---------- */
+    .strip { padding: 24px 0 40px; }
+    .strip ol {
+      list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+      background: var(--panel-border); border: 1px solid var(--panel-border); border-radius: 20px; overflow: hidden;
+    }
+    .strip li { background: var(--bg-2); padding: 24px; }
+    .strip .k { font-size: 13px; font-weight: 650; letter-spacing: .12em; text-transform: uppercase; color: var(--lavender); }
+    .strip .v { margin-top: 6px; font-size: 16px; color: var(--muted); }
+
+    /* ---------- Feature rows ---------- */
+    .feature { padding: 72px 0; position: relative; }
+    .feature .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
+    .feature.flip .copy { order: 2; }
+    .feature::before {
+      content: ""; position: absolute; z-index: -1; width: 620px; height: 620px; top: 50%; transform: translateY(-50%);
+      background: radial-gradient(closest-side, rgba(124, 58, 237, 0.28), transparent);
+    }
+    .feature:not(.flip)::before { right: 0; }
+    .feature.flip::before { left: 0; background: radial-gradient(closest-side, rgba(59, 108, 246, 0.26), transparent); }
+    .feature .phone { width: 320px; margin: 0 auto; }
+    .feature h2 { margin: 18px 0 16px; font-size: clamp(36px, 4.6vw, 54px); line-height: 1.05; letter-spacing: -0.03em; font-weight: 750; }
+    .feature p { color: var(--muted); font-size: 19px; max-width: 28em; }
+    .feature ul { list-style: none; margin-top: 26px; display: grid; gap: 12px; }
+    .feature li { display: flex; gap: 12px; color: var(--text); font-size: 16px; }
+    .feature li::before {
+      content: ""; flex: none; width: 20px; height: 20px; margin-top: 2px; border-radius: 50%;
+      background: rgba(124, 58, 237, 0.25) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M6 10.5l2.6 2.5L14 7.5' fill='none' stroke='%23c4a8ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/20px no-repeat;
+    }
+
+    /* ---------- Schedule ---------- */
+    .schedule { padding: 40px 0 96px; }
+    .schedule .card {
+      border: 1px solid var(--panel-border); background: var(--panel); border-radius: 28px; padding: 48px;
+    }
+    .schedule h2 { font-size: clamp(28px, 3.4vw, 40px); letter-spacing: -0.025em; line-height: 1.1; }
+    .schedule > .wrap > .card > p { color: var(--muted); margin-top: 10px; max-width: 40em; }
+    .timeline { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 40px; position: relative; }
+    .timeline::before {
+      content: ""; position: absolute; top: 11px; left: 12px; right: 12px; height: 2px;
+      background: linear-gradient(90deg, var(--violet), var(--blue));
+    }
+    .timeline div { position: relative; padding-right: 16px; }
+    .timeline span.dot {
+      display: block; width: 24px; height: 24px; border-radius: 50%; margin-bottom: 18px;
+      background: var(--bg); border: 3px solid var(--lavender); position: relative;
+    }
+    .timeline div:last-child span.dot { background: var(--lavender); }
+    .timeline b { display: block; font-size: 18px; }
+    .timeline small { color: var(--muted); font-size: 15px; }
+
+    /* ---------- Privacy ---------- */
+    .section-head { text-align: center; max-width: 640px; margin: 0 auto 48px; }
+    .section-head h2 { margin-top: 18px; font-size: clamp(34px, 4.2vw, 48px); letter-spacing: -0.03em; line-height: 1.05; }
+    .section-head p { color: var(--muted); margin-top: 14px; font-size: 18px; }
+    .privacy { padding: 96px 0; border-top: 1px solid var(--panel-border); }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .tile { border: 1px solid var(--panel-border); background: var(--panel); border-radius: 22px; padding: 28px; }
+    .tile .ico {
+      width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 18px;
+      background: linear-gradient(135deg, rgba(124, 58, 237, .5), rgba(59, 108, 246, .5));
+    }
+    .tile h3 { font-size: 19px; margin-bottom: 6px; letter-spacing: -0.01em; }
+    .tile p { color: var(--muted); font-size: 15.5px; }
+    .policy { max-width: 760px; margin: 56px auto 0; color: var(--muted); font-size: 15.5px; }
+    .policy h3 { color: var(--text); font-size: 17px; margin: 22px 0 6px; }
+    .policy p + p { margin-top: 10px; }
+
+    /* ---------- Support ---------- */
+    .support { padding: 96px 0; border-top: 1px solid var(--panel-border); }
+    .support .wrap { display: grid; grid-template-columns: 1.4fr 1fr; gap: 48px; align-items: start; }
+    .support .section-head { text-align: left; margin: 0 0 32px; }
+    details { border-bottom: 1px solid var(--panel-border); padding: 20px 0; }
+    details:first-of-type { border-top: 1px solid var(--panel-border); }
+    summary { cursor: pointer; list-style: none; font-weight: 600; font-size: 17px; display: flex; justify-content: space-between; gap: 16px; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; color: var(--lavender); font-size: 22px; line-height: 1; transition: transform .2s; }
+    details[open] summary::after { transform: rotate(45deg); }
+    details p { color: var(--muted); margin-top: 10px; font-size: 16px; }
+    .contact {
+      position: sticky; top: 96px;
+      border-radius: 28px; padding: 36px;
+      background: linear-gradient(160deg, rgba(124, 58, 237, .35), rgba(59, 108, 246, .25));
+      border: 1px solid rgba(196, 168, 255, .25);
+    }
+    .contact h3 { font-size: 26px; letter-spacing: -0.02em; }
+    .contact p { color: #d6d1f5; margin: 10px 0 24px; }
+    .contact a.mail {
+      display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+      background: #fff; color: #1b1440; font-weight: 650; padding: 13px 22px; border-radius: 999px; font-size: 16px;
+    }
+    .contact small { display: block; margin-top: 16px; color: #bfb8e6; font-size: 14px; word-break: break-all; }
+
+    /* ---------- Final CTA + footer ---------- */
+    .final { padding: 100px 0 120px; text-align: center; position: relative; }
+    .final::before {
+      content: ""; position: absolute; inset: 0; z-index: -1;
+      background: radial-gradient(700px 360px at 50% 60%, rgba(124, 58, 237, .4), transparent 70%);
+    }
+    .final img.app { width: 96px; height: 96px; border-radius: 22px; margin: 0 auto 28px; box-shadow: 0 20px 50px rgba(59, 108, 246, .35); }
+    .final h2 { font-size: clamp(36px, 5vw, 60px); letter-spacing: -0.035em; line-height: 1.05; margin-bottom: 32px; }
+    footer { border-top: 1px solid var(--panel-border); padding: 28px 0 40px; color: var(--faint); font-size: 14px; }
+    footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    footer nav { position: static; background: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; display: flex; gap: 22px; }
+    footer a { text-decoration: none; }
+    footer a:hover { color: var(--text); }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 900px) {
+      .links a:not(.keep) { display: none; }
+      .hero { padding-top: 56px; }
+      .hero .wrap, .feature .wrap, .support .wrap { grid-template-columns: 1fr; }
+      .hero .copy { text-align: center; }
+      .hero p.lede { margin-left: auto; margin-right: auto; }
+      .hero-phones { height: 520px; max-width: 460px; width: 100%; margin: 0 auto; }
+      .hero-phones .phone { width: 240px; }
+      .feature { padding: 72px 0; }
+      .feature .wrap { gap: 44px; }
+      .feature.flip .copy { order: 0; }
+      .feature .copy { text-align: center; }
+      .feature p { margin: 0 auto; }
+      .feature ul { justify-items: center; }
+      .feature li { text-align: left; max-width: 26em; }
+      .feature .phone { width: 280px; }
+      .strip ol, .timeline { grid-template-columns: repeat(2, 1fr); }
+      .timeline { row-gap: 32px; }
+      .timeline::before { display: none; }
+      .grid3 { grid-template-columns: 1fr; }
+      .contact { position: static; }
+      .schedule .card { padding: 32px 24px; }
+    }
+    @media (max-width: 520px) {
+      .wrap { padding: 0 16px; }
+      .hero-phones { height: 440px; }
+      .hero-phones .phone { width: 200px; }
+      .hero-phones .back { left: 0; }
+      .hero-phones .front { right: 0; }
+      .strip ol { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="wrap">
+      <a class="brand" href="#top"><img src="icon.png" alt="">WordVision</a>
+      <div class="links">
+        <a href="#features">Features</a>
+        <a href="#privacy">Privacy</a>
+        <a class="keep" href="#support">Support</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero" id="top">
+    <div class="wrap">
+      <div class="copy">
+        <span class="eyebrow">Vocabulary for iPhone</span>
+        <h1>Read anything.<br><span class="grad">Keep every word.</span></h1>
+        <p class="lede">
+          Point your camera at a page, tap the word you don't know, and see what it means right away.
+          WordVision then quizzes you at the right moments until the word is yours.
+        </p>
+        <!-- Replace href with the App Store link once the app is live -->
+        <a class="badge" href="#" aria-label="Download on the App Store">
+          <img src="images/app-store-badge-black.svg" alt="Download on the App Store">
+        </a>
+        <p class="badge-note">Coming soon to the App Store · Requires iOS 26</p>
+      </div>
+      <div class="hero-phones" aria-hidden="true">
+        <div class="phone back"><img src="images/scan.jpg" alt=""></div>
+        <div class="phone front"><img src="images/learn.jpg" alt=""></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="strip">
+    <div class="wrap">
+      <ol>
+        <li><div class="k">Scan</div><div class="v">Every word on the page, boxed and tappable.</div></li>
+        <li><div class="k">Learn</div><div class="v">Meanings, examples and synonyms in one tap.</div></li>
+        <li><div class="k">Review</div><div class="v">Quick quizzes that test real understanding.</div></li>
+        <li><div class="k">Remember</div><div class="v">Reminders timed to just before you'd forget.</div></li>
+      </ol>
+    </div>
+  </section>
+
+  <main id="features">
+    <section class="feature">
+      <div class="wrap">
+        <div class="copy">
+          <span class="eyebrow">Scan</span>
+          <h2>Point. Scan.<br><span class="grad">Understand.</span></h2>
+          <p>Hold your phone over a book, article or sign. WordVision recognizes the text on the spot and turns every word into something you can tap.</p>
+          <ul>
+            <li>Text recognition runs entirely on your iPhone</li>
+            <li>Works on printed books, screens and signs</li>
+            <li>No typing or copying words by hand</li>
+          </ul>
+        </div>
+        <div class="phone"><img src="images/scan.jpg" alt="WordVision highlighting every word on a book page" loading="lazy"></div>
+      </div>
+    </section>
+
+    <section class="feature flip">
+      <div class="wrap">
+        <div class="copy">
+          <span class="eyebrow">Learn</span>
+          <h2>Tap a word.<br><span class="grad">Learn it for life.</span></h2>
+          <p>Get a clear definition with pronunciation, example sentences and synonyms. Tap <b>Learn Word</b> to add it to your list.</p>
+          <ul>
+            <li>Built-in dictionary that works offline</li>
+            <li>Every sense of the word, grouped by part of speech</li>
+            <li>One tap to start learning it</li>
+          </ul>
+        </div>
+        <div class="phone"><img src="images/learn.jpg" alt="Definition sheet for the word Metaphysical with a Learn Word button" loading="lazy"></div>
+      </div>
+    </section>
+
+    <section class="feature">
+      <div class="wrap">
+        <div class="copy">
+          <span class="eyebrow">Review</span>
+          <h2>Make every new<br>word <span class="grad">stick.</span></h2>
+          <p>Each review shows you a definition and asks which word it describes. You have to recall the meaning, not just recognize the spelling.</p>
+          <ul>
+            <li>Short multiple-choice quizzes</li>
+            <li>Get it right three times and the word is learnt</li>
+            <li>Missed one? It comes back a few hours later</li>
+          </ul>
+        </div>
+        <div class="phone"><img src="images/review.jpg" alt="Review quiz asking for the word meaning a pleasant surprise discovered by accident" loading="lazy"></div>
+      </div>
+    </section>
+
+    <section class="feature flip">
+      <div class="wrap">
+        <div class="copy">
+          <span class="eyebrow">Remind</span>
+          <h2>Reminders right<br><span class="grad">before you forget.</span></h2>
+          <p>Spaced-repetition notifications arrive when a word is due. You can answer straight from the notification.</p>
+          <ul>
+            <li>Spread across your morning, afternoon and evening</li>
+            <li>One word at a time, never a pile-up</li>
+            <li>The schedule adjusts as you add and learn words</li>
+          </ul>
+        </div>
+        <div class="phone"><img src="images/remind.jpg" alt="Lock screen showing a Time to review notification" loading="lazy"></div>
+      </div>
+    </section>
+
+    <section class="feature">
+      <div class="wrap">
+        <div class="copy">
+          <span class="eyebrow">Catch up</span>
+          <h2>Your words<br><span class="grad">wait for you.</span></h2>
+          <p>Missed a reminder? Every pending review is saved in one list, so you can go through them whenever you have a minute.</p>
+        </div>
+        <div class="phone"><img src="images/catchup.jpg" alt="Pending Reviews list" loading="lazy"></div>
+      </div>
+    </section>
+  </main>
+
+  <section class="schedule">
+    <div class="wrap">
+      <div class="card">
+        <h2>How a word becomes <span class="grad">yours</span></h2>
+        <p>Each review comes a little later than the last, which is how long-term memory is built.</p>
+        <div class="timeline">
+          <div><span class="dot"></span><b>Same day</b><small>First review a few hours after you save it</small></div>
+          <div><span class="dot"></span><b>+1 day</b><small>After your first correct answer</small></div>
+          <div><span class="dot"></span><b>+3 days</b><small>After your second correct answer</small></div>
+          <div><span class="dot"></span><b>Learnt</b><small>Three correct answers and it's done</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="privacy" id="privacy">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Privacy</span>
+        <h2>Your words stay <span class="grad">on your iPhone.</span></h2>
+        <p>No account, no tracking, no ads.</p>
+      </div>
+      <div class="grid3">
+        <div class="tile">
+          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.5"/></svg></div>
+          <h3>Camera stays local</h3>
+          <p>Text is recognized on-device. Photos and camera frames are never uploaded or saved.</p>
+        </div>
+        <div class="tile">
+          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+          <h3>No data collected</h3>
+          <p>Your word list and review history are stored only on your device. There's no account and no analytics.</p>
+        </div>
+        <div class="tile">
+          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></div>
+          <h3>Offline first</h3>
+          <p>Definitions come from a dictionary built into the app. Only a rare word that isn't in it is looked up online.</p>
+        </div>
+      </div>
+
+      <div class="policy">
+        <h3>Privacy policy</h3>
+        <p>Last updated: 27 September 2026.</p>
+        <p>WordVision does not collect, store or share any personal information. It has no user accounts, analytics, advertising or tracking.</p>
+        <h3>Camera</h3>
+        <p>WordVision uses your camera only to recognize text so you can tap on words. Recognition happens on your device using Apple's frameworks. Images are not saved or sent anywhere.</p>
+        <h3>Your learning data</h3>
+        <p>The words you save, your review progress and your pending reviews are stored locally on your iPhone. Deleting the app deletes this data.</p>
+        <h3>Dictionary lookups</h3>
+        <p>Most definitions come from the built-in dictionary (Open English WordNet). If a word isn't found there and you're online, only that single word is sent to a third-party dictionary service (WordsAPI) to fetch its definition. Nothing that identifies you is sent with it.</p>
+        <h3>Notifications</h3>
+        <p>Review reminders are scheduled locally on your device. No push notification server is involved.</p>
+        <h3>Contact</h3>
+        <p>Questions about privacy? Email <a href="mailto:mshreyansh.dev@gmail.com">mshreyansh.dev@gmail.com</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="support" id="support">
+    <div class="wrap">
+      <div>
+        <div class="section-head">
+          <span class="eyebrow">Support</span>
+          <h2>Questions &amp; <span class="grad">answers</span></h2>
+        </div>
+        <details>
+          <summary>The camera isn't picking up any words.</summary>
+          <p>Make sure WordVision has camera access in Settings → Privacy &amp; Security → Camera. Then hold the phone steady, fairly close to the page, in good light. If you see "No text found", tap Retake and move a little closer.</p>
+        </details>
+        <details>
+          <summary>I'm not getting review reminders.</summary>
+          <p>Check that notifications are allowed for WordVision in Settings → Notifications. Reminders only arrive for words you've added with Learn Word. Opening the app refreshes your review schedule.</p>
+        </details>
+        <details>
+          <summary>How does the review schedule work?</summary>
+          <p>Your first review comes a few hours after you save a word. After each correct answer the next one is 1 day, then 3 days away. Three correct answers mark the word as learnt. A wrong answer brings the word back a few hours later.</p>
+        </details>
+        <details>
+          <summary>I missed a notification. Is the review lost?</summary>
+          <p>No. Missed reviews are kept in Pending Reviews inside the app, so you can answer them any time.</p>
+        </details>
+        <details>
+          <summary>Do I need an internet connection?</summary>
+          <p>No. Scanning, the dictionary, reviews and reminders all work offline. A connection is only used to look up a word that isn't in the built-in dictionary.</p>
+        </details>
+        <details>
+          <summary>Does WordVision sync between devices?</summary>
+          <p>Not at the moment. Your words are stored only on the iPhone you saved them on.</p>
+        </details>
+      </div>
+      <aside class="contact">
+        <h3>Still need help?</h3>
+        <p>Found a bug, have a feature idea, or a word that looks wrong? Send an email and you'll usually get a reply within a couple of days.</p>
+        <a class="mail" href="mailto:mshreyansh.dev@gmail.com?subject=WordVision%20Support">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+          Email support
+        </a>
+        <small>mshreyansh.dev@gmail.com</small>
+      </aside>
+    </div>
+  </section>
+
+  <section class="final">
+    <div class="wrap">
+      <img class="app" src="icon.png" alt="WordVision app icon">
+      <h2>Your next great word<br>is on the <span class="grad">next page.</span></h2>
+      <a class="badge" href="#" aria-label="Download on the App Store">
+        <img src="images/app-store-badge-black.svg" alt="Download on the App Store">
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 Shreyansh Mishra</span>
+      <nav>
+        <a href="#privacy">Privacy Policy</a>
+        <a href="#support">Support</a>
+        <a href="mailto:mshreyansh.dev@gmail.com">Contact</a>
+      </nav>
+    </div>
+    <div class="wrap" style="margin-top:12px;font-size:12px;">
+      <span>Apple, the Apple logo and iPhone are trademarks of Apple Inc., registered in the U.S. and other countries. App Store is a service mark of Apple Inc.</span>
+    </div>
+  </footer>
+
+</body>
+</html>
